@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Health Food MVP</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Персональное меню по анализам</h1>
+    <section class="card">
+      <h2>Профиль</h2>
+      <form id="profileForm" class="grid-3">
+        <input name="name" id="prof_name" placeholder="Имя" />
+        <input name="email" id="prof_email" placeholder="Email" />
+        <input name="goals" id="prof_goals" placeholder="Цели (свободный текст)" />
+        <button type="submit">Сохранить профиль</button>
+      </form>
+    </section>
+
+    <form id="genForm">
+      <div class="row">
+        <label>Режим</label>
+        <select name="mode" id="mode">
+          <option value="diy">Сделать самому</option>
+          <option value="restaurants">Рестораны рядом</option>
+          <option value="photo">Фото-меню</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Анализы (JSON)</label>
+        <textarea name="labs_json" id="labs" rows="8">{
+  "ferritin": 18,
+  "vitamin_d": 20,
+  "b12": 280,
+  "ldl": 140,
+  "hba1c": 5.9,
+  "triglycerides": 180,
+  "crp": 4
+}</textarea>
+      </div>
+      <div class="row">
+        <label>Предпочтения (JSON, опционально)</label>
+        <textarea name="preferences_json" id="prefs" rows="4">{
+  "diet": "",
+  "allergies": []
+}</textarea>
+      </div>
+      <div class="row" id="geoRow" style="display:none;">
+        <label>Локация (для ресторанов)</label>
+        <div class="grid-2">
+          <input type="number" step="any" name="lat" id="lat" placeholder="lat" />
+          <input type="number" step="any" name="lon" id="lon" placeholder="lon" />
+          <button type="button" id="geoBtn">Моё местоположение</button>
+        </div>
+      </div>
+      <div class="row" id="photoRow" style="display:none;">
+        <label>Фото (можно назвать файл подсказкой, напр. salmon.jpg)</label>
+        <input type="file" name="photo" accept="image/*" />
+      </div>
+      <div class="row">
+        <button type="submit">Сгенерировать план</button>
+      </div>
+    </form>
+
+    <section class="card">
+      <h2>Сохранить анализы и поставить напоминание</h2>
+      <div class="row">
+        <div class="grid-2">
+          <input type="number" id="weeks" value="10" min="2" max="24" />
+          <button id="saveLabsBtn" type="button">Сохранить и напомнить</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Ближайшие напоминания</h2>
+      <div class="row">
+        <button id="refreshRemBtn" type="button">Обновить список</button>
+      </div>
+      <div id="reminders"></div>
+    </section>
+
+    <div id="result" class="result"></div>
+  </div>
+  <script src="/static/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# Local secrets
+.env
+
+# Local DB
+data.db
+
+# OS files
+.DS_Store
