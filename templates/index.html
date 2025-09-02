@@ -3,87 +3,354 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Health Food MVP</title>
+  <title>Health Food — Персональное меню по анализам</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="color-scheme" content="light only">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Персональное питание по анализам: готовьте дома или выбирайте в ресторанах рядом. Рекомендации по витаминам.">
 </head>
 <body>
-  <div class="container">
-    <h1>Персональное меню по анализам</h1>
-    <section class="card">
-      <h2>Профиль</h2>
-      <form id="profileForm" class="grid-3">
-        <input name="name" id="prof_name" placeholder="Имя" />
-        <input name="email" id="prof_email" placeholder="Email" />
-        <input name="goals" id="prof_goals" placeholder="Цели (свободный текст)" />
-        <button type="submit">Сохранить профиль</button>
-      </form>
-    </section>
+  <div class="app-container">
+    <header class="header">
+      <div class="header-content">
+        <div class="brand">
+          <div class="logo">🥗</div>
+          <div class="brand-text">
+            <h1>Health Food</h1>
+            <p class="tagline">Персональное меню по анализам</p>
+          </div>
+        </div>
+        <nav class="nav-tabs">
+          <button class="nav-tab active" data-tab="plan"><span class="tab-icon">🍲</span> План питания</button>
+          <button class="nav-tab" data-tab="rem"><span class="tab-icon">🔔</span> Напоминания</button>
+          <button class="nav-tab" data-tab="profile"><span class="tab-icon">👤</span> Профиль</button>
+        </nav>
+      </div>
+    </header>
 
-    <form id="genForm">
-      <div class="row">
-        <label>Режим</label>
-        <select name="mode" id="mode">
-          <option value="diy">Сделать самому</option>
-          <option value="restaurants">Рестораны рядом</option>
-          <option value="photo">Фото-меню</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>Анализы (JSON)</label>
-        <textarea name="labs_json" id="labs" rows="8">{
-  "ferritin": 18,
-  "vitamin_d": 20,
-  "b12": 280,
-  "ldl": 140,
-  "hba1c": 5.9,
-  "triglycerides": 180,
-  "crp": 4
-}</textarea>
-      </div>
-      <div class="row">
-        <label>Предпочтения (JSON, опционально)</label>
-        <textarea name="preferences_json" id="prefs" rows="4">{
-  "diet": "",
-  "allergies": []
-}</textarea>
-      </div>
-      <div class="row" id="geoRow" style="display:none;">
-        <label>Локация (для ресторанов)</label>
-        <div class="grid-2">
-          <input type="number" step="any" name="lat" id="lat" placeholder="lat" />
-          <input type="number" step="any" name="lon" id="lon" placeholder="lon" />
-          <button type="button" id="geoBtn">Моё местоположение</button>
+    <main class="main-content">
+      <section class="tab-content active" id="tab-plan">
+        <div class="content-wrapper">
+          <div class="planner-layout">
+            <main class="planner-main">
+              <div class="step-card">
+                <div class="step-header">
+                  <div class="step-number" style="background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);">💡</div>
+                  <div class="step-info">
+                    <h2>Раскройте потенциал вашего здоровья</h2>
+                    <p>Получите персональные рекомендации по питанию, основанные на ваших анализах.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step-card">
+                <div class="step-header">
+                  <div class="step-number">1</div>
+                  <div class="step-info">
+                    <h2>Ваши анализы</h2>
+                    <p>Введите актуальные значения биомаркеров из вашего последнего отчета.</p>
+                  </div>
+                </div>
+                <div class="biomarkers-grid" id="biomarkers-grid">
+                  <!-- Biomarkers will be inserted here by JS -->
+                </div>
+                <div class="preferences-section">
+                  <label class="section-label">
+                    Предпочтения <span class="optional">опционально</span>
+                  </label>
+                  <div class="preferences-grid">
+                    <div class="form-group">
+                      <label for="diet-select">Диета</label>
+                      <select id="diet-select" name="diet" class="form-control">
+                        <option value="">Без особенностей</option>
+                        <option value="vegetarian">Вегетарианская</option>
+                        <option value="vegan">Веганская</option>
+                        <option value="gluten-free">Без глютена</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="allergies-input">Аллергии или исключения</label>
+                      <div class="tags-input-container" id="allergies-container">
+                        <input type="text" id="allergies-input" placeholder="Добавьте и нажмите Enter..." />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step-card">
+                <div class="step-header">
+                  <div class="step-number">2</div>
+                  <div class="step-info">
+                    <h2>План питания на сегодня</h2>
+                    <p>Добавьте блюда в свой рацион, чтобы сгенерировать список покупок или посмотреть КБЖУ.</p>
+                  </div>
+                </div>
+                <div class="day-planner">
+                  <div class="meal-slot" data-meal="breakfast">
+                    <div class="meal-slot-header">
+                      <h3><span class="meal-icon">🍳</span> Завтрак</h3>
+                      <button class="add-meal-btn" data-meal-button="breakfast">+ Добавить</button>
+                    </div>
+                    <div class="meal-slot-content" id="breakfast-slot-content">
+                      <div class="empty-meal-slot">Нажмите "+", чтобы подобрать блюдо</div>
+                    </div>
+                  </div>
+                  <div class="meal-slot" data-meal="lunch">
+                    <div class="meal-slot-header">
+                      <h3><span class="meal-icon">☀️</span> Обед</h3>
+                      <button class="add-meal-btn" data-meal-button="lunch">+ Добавить</button>
+                    </div>
+                    <div class="meal-slot-content" id="lunch-slot-content">
+                      <div class="empty-meal-slot">Нажмите "+", чтобы подобрать блюдо</div>
+                    </div>
+                  </div>
+                  <div class="meal-slot" data-meal="dinner">
+                    <div class="meal-slot-header">
+                      <h3><span class="meal-icon">🌙</span> Ужин</h3>
+                      <button class="add-meal-btn" data-meal-button="dinner">+ Добавить</button>
+                    </div>
+                    <div class="meal-slot-content" id="dinner-slot-content">
+                      <div class="empty-meal-slot">Нажмите "+", чтобы подобрать блюдо</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step-card hidden" id="generator-section">
+                <div class="step-header">
+                  <div class="step-number" id="generator-icon">🧑‍🍳</div>
+                  <div class="step-info">
+                    <h2 id="generator-title">Подбор блюд</h2>
+                    <p>Выберите, хотите ли вы готовить сами или найти подходящие блюда в заведениях поблизости.</p>
+                  </div>
+                  <button class="close-btn" id="close-generator-btn" title="Закрыть подбор">&times;</button>
+                </div>
+                <div class="options-grid">
+                  <button class="option-card" data-mode="diy">
+                    <span class="option-icon">🧑‍🍳</span>
+                    <div class="option-content">
+                      <h3>Сделать самому</h3>
+                      <p>Получите персональные рецепты с пошаговыми инструкциями.</p>
+                    </div>
+                  </button>
+                  <button class="option-card" data-mode="restaurants">
+                    <span class="option-icon">🥡</span>
+                    <div class="option-content">
+                      <h3>Рестораны рядом</h3>
+                      <p>Мы подберем для вас подходящие блюда в ближайших ресторанах.</p>
+                    </div>
+                  </button>
+                </div>
+                <div class="location-section hidden">
+                  <button id="geoBtn" class="location-btn" title="Определить местоположение">
+                    <span class="location-icon">📍</span> Определить мое местоположение
+                  </button>
+                </div>
+                <div class="results-section" id="resultsWrap">
+                  <div id="result" class="results-grid-diy">
+                    <div class="empty-state">
+                      <span class="empty-icon">🍽️</span>
+                      <p>Здесь появятся ваши рекомендации.</p>
+                    </div>
+                  </div>
+                  <div id="ai-generator-wizard" class="hidden">
+                    <!-- AI Recipe Generator Wizard will be injected here by JS -->
+                  </div>
+                </div>
+              </div>
+
+              <form id="genForm" class="hidden">
+                <input type="hidden" name="mode" id="mode" value="diy" />
+                <input type="hidden" name="meal" id="meal" value="breakfast" />
+                <input type="hidden" name="lat" id="lat" />
+                <input type="hidden" name="lon" id="lon" />
+              </form>
+            </main>
+
+            <aside class="planner-sidebar">
+              <div class="step-card">
+                <div class="vitamins-card" id="vitaminBox">
+                  <div id="vitaminList">
+                    <div class="ai-rec-starter">
+                      <div class="ai-rec-icon">✨</div>
+                      <h3>Рекомендации по добавкам от AI</h3>
+                      <p>Получите персональные советы по витаминам и минералам на основе ваших анализов.</p>
+                      <button id="get-ai-recommendations-btn" class="btn-primary">Получить рекомендации</button>
+                    </div>
+                  </div>
+                  <div id="ai-recommendations-chat" class="hidden">
+                    <div class="vitamins-header">
+                      <h3>Диалог с AI-диетологом</h3>
+                    </div>
+                    <div id="ai-recommendations-messages" class="chat-messages">
+                        <!-- AI messages will be here -->
+                    </div>
+                    <div class="chat-footer hidden" id="rec-chat-footer">
+                        <div class="chat-input-container">
+                            <textarea id="rec-chat-input" placeholder="Уточните что-нибудь..." rows="1"></textarea>
+                            <button id="rec-chat-send-btn" class="btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+                <span class="disclaimer">Не является мед. рекомендацией</span>
+              </div>
+              <div class="step-card">
+                <div class="basket-header">
+                  <h3>🛒 Список покупок</h3>
+                  <p class="basket-subtitle">На основе выбранных рецептов</p>
+                </div>
+                <div id="shopping-list" class="basket-content">
+                  <div class="empty-basket">
+                    <p>Добавьте рецепты в план, чтобы увидеть здесь список ингредиентов.</p>
+                  </div>
+                </div>
+                <button id="clear-plan-btn" class="btn-secondary full-width">Очистить план</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-rem">
+        <div class="content-wrapper">
+          <div class="step-card">
+            <div class="step-header">
+              <div class="step-number">🔔</div>
+              <div class="step-info">
+                <h2>Напоминания</h2>
+                <p>Сохраняйте анализы и устанавливайте напоминания, чтобы не забыть о повторном обследовании.</p>
+              </div>
+            </div>
+            <div class="reminder-setup">
+              <div class="input-group">
+                <label for="weeks">Напомнить через (недель):</label>
+                <div class="input-with-btn">
+                  <input type="number" id="weeks" value="10" min="2" max="24" />
+                  <button id="saveLabsBtn" type="button" class="btn-primary">Сохранить и напомнить</button>
+                </div>
+              </div>
+            </div>
+            <div class="reminders-list" id="reminders">
+              <!-- Reminders will be loaded here -->
+            </div>
+             <div class="text-center">
+              <button id="refreshRemBtn" type="button" class="btn-secondary">Обновить список</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-profile">
+        <div class="content-wrapper">
+          <div class="step-card">
+             <div class="step-header">
+              <div class="step-number">👤</div>
+              <div class="step-info">
+                <h2>Ваш профиль</h2>
+                <p>Эта информация поможет нам лучше персонализировать рекомендации в будущем.</p>
+              </div>
+            </div>
+            <form id="profileForm" class="profile-form">
+              <div class="form-group">
+                <label for="prof_name">Имя</label>
+                <input name="name" id="prof_name" placeholder="Как к вам обращаться?" />
+              </div>
+              <div class="form-group">
+                <label for="prof_email">Email</label>
+                <input name="email" id="prof_email" type="email" placeholder="user@example.com" />
+              </div>
+              <div class="form-group">
+                <label for="prof_goals">Цели</label>
+                <textarea name="goals" id="prof_goals" placeholder="Например: повысить энергию, улучшить состояние кожи..." rows="3"></textarea>
+              </div>
+              <button type="submit" class="btn-primary">Сохранить профиль</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- AI Photo Modal -->
+    <div id="ai-photo-modal" class="modal-overlay hidden">
+        <div class="modal-content ai-photo-modal-content">
+            <button id="close-ai-modal-btn" class="modal-close-btn">&times;</button>
+            <div id="ai-modal-body" class="modal-body">
+                
+                <div id="ai-modal-initial-state">
+                    <div class="ai-modal-header">
+                        <span class="ai-modal-icon">✨</span>
+                        <h2>Проанализируйте продукты с помощью AI</h2>
+                        <p>Загрузите фото имеющихся у вас продуктов, и наш AI-диетолог предложит рецепты с учётом ваших анализов.</p>
+                    </div>
+                    <div id="image-upload-area" class="image-upload-area">
+                        <label for="photo-upload-input" class="upload-label">
+                            <div class="upload-icon">📷</div>
+                            <div class="upload-text">
+                                <p>Нажмите, чтобы загрузить фото</p>
+                                <span>PNG, JPG до 5МБ</span>
+                            </div>
+                        </label>
+                        <input type="file" id="photo-upload-input" accept="image/png, image/jpeg" hidden>
+                    </div>
+                </div>
+
+                <div id="ai-modal-preview-state" class="hidden">
+                    <div class="ai-modal-header">
+                         <span class="ai-modal-icon">🖼️</span>
+                        <h2>Предпросмотр</h2>
+                        <p>Ваше фото готово к анализу. Нажмите "Проанализировать", чтобы продолжить.</p>
+                    </div>
+                    <div id="image-preview-area" class="image-preview-area">
+                        <img id="image-preview" src="#" alt="Предпросмотр фото" />
+                        <button id="remove-image-btn" class="remove-image-btn">&times;</button>
+                    </div>
+                     <div id="ai-modal-loader" class="loader-container hidden">
+                        <div class="loader"></div>
+                        <p>Анализируем ваше фото... Это может занять до 30 секунд.</p>
+                    </div>
+                </div>
+
+                <div id="ai-modal-results-state" class="hidden">
+                     <div class="ai-modal-header">
+                        <span class="ai-modal-icon">👍</span>
+                        <h2>Результаты анализа</h2>
+                        <p>Нажмите на продукт, чтобы исключить его из списка для подбора рецептов.</p>
+                    </div>
+                    <div id="ai-results-area" class="ai-results-area">
+                        <h4>Обнаруженные продукты:</h4>
+                        <div id="detected-items-container" class="detected-items-container">
+                            <!-- Detected items will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button id="analyze-photo-btn" class="btn-primary" disabled>Проанализировать</button>
+                <button id="use-products-btn" class="btn-primary hidden">Подобрать рецепты</button>
+            </div>
+        </div>
+    </div>
+    <!-- End Modal -->
+
+    <!-- Recipe Modal -->
+    <div id="recipe-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <button id="close-modal-btn" class="modal-close-btn">&times;</button>
+        <div id="modal-body">
         </div>
       </div>
-      <div class="row" id="photoRow" style="display:none;">
-        <label>Фото (можно назвать файл подсказкой, напр. salmon.jpg)</label>
-        <input type="file" name="photo" accept="image/*" />
-      </div>
-      <div class="row">
-        <button type="submit">Сгенерировать план</button>
-      </div>
-    </form>
+    </div>
+    <!-- End Recipe Modal -->
 
-    <section class="card">
-      <h2>Сохранить анализы и поставить напоминание</h2>
-      <div class="row">
-        <div class="grid-2">
-          <input type="number" id="weeks" value="10" min="2" max="24" />
-          <button id="saveLabsBtn" type="button">Сохранить и напомнить</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Ближайшие напоминания</h2>
-      <div class="row">
-        <button id="refreshRemBtn" type="button">Обновить список</button>
-      </div>
-      <div id="reminders"></div>
-    </section>
-
-    <div id="result" class="result"></div>
-  </div>
-  <script src="/static/main.js"></script>
+  
+    <script type="module" src="/static/main.js"></script>
 </body>
 </html>
