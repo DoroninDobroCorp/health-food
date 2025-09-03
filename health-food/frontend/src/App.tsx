@@ -8,8 +8,11 @@ import { AIPhotoModal } from './components/Generator/AIPhotoModal';
 import { useAppSelector } from './store/hooks';
 import AuthPage from './components/Auth/AuthPage';
 import Modal from './components/UI/Modal';
+import RestaurantsTab from './components/Restaurants/RestaurantsTab';
+import SubscriptionTab from './components/Subscription/SubscriptionTab';
+import ReviewsTab from './components/Reviews/ReviewsTab';
 
-export type Tab = 'plan' | 'rem' | 'profile';
+export type Tab = 'plan' | 'restaurants' | 'subs' | 'reviews' | 'rem' | 'profile';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
@@ -19,6 +22,12 @@ function App() {
     switch (activeTab) {
       case 'plan':
         return <PlannerTab />;
+      case 'restaurants':
+        return <RestaurantsTab />;
+      case 'subs':
+        return <SubscriptionTab />;
+      case 'reviews':
+        return <ReviewsTab />;
       case 'rem':
         return <RemindersTab />;
       case 'profile':

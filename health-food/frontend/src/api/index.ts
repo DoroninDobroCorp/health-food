@@ -1,8 +1,11 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_URL;
-
 import type { PlanItem } from "../store/slices/appSlice";
 import type { Biomarkers, PhotoAnalysisResponse, Preferences, User, Recipe } from "./types";
 import { getToken } from "../store/localStorage";
+
+const BASE_URL =
+  (import.meta as any).env?.VITE_BACKEND_URL ||
+  (import.meta as any).env?.BACKEND_URL ||
+  'http://localhost:8000';
 
 function withBaseUrl(endpoint: string) {
   return `${BASE_URL}${endpoint}`;

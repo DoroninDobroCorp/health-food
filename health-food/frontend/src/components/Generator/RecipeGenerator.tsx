@@ -65,6 +65,13 @@ const RecipeGenerator = () => {
                             <p>Получите персональные рецепты с пошаговыми инструкциями.</p>
                         </div>
                     </button>
+                    <button className={`option-card ${mode === 'restaurants' ? 'primary' : ''}`} onClick={() => handleModeSelect('restaurants')}>
+                        <span className="option-icon">📍</span>
+                        <div className="option-content">
+                            <h3>Заведения рядом</h3>
+                            <p>Найдите подходящие блюда поблизости по вашим анализам.</p>
+                        </div>
+                    </button>
                     <button className="option-card" onClick={() => setRecipesModalOpen(true)}>
                         <span className="option-icon">🥡</span>
                         <div className="option-content">

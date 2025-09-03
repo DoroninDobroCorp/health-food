@@ -274,6 +274,29 @@ export const fetchRecommendations = createAsyncThunk(
 
         const formData = new FormData();
         formData.append('mode', mode);
+        
+        // If restaurants mode, try to get user's current location (with safe fallback)
+        if (mode === 'restaurants') {
+            const fallback = { lat: 55.751244, lon: 37.618423 }; // Moscow center as fallback
+            try {
+                const coords = await new Promise<{ lat: number; lon: number }>((resolve) => {
+                    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+                        resolve(fallback);
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                        () => resolve(fallback),
+                        { enableHighAccuracy: true, timeout: 5000 }
+                    );
+                });
+                formData.append('lat', String(coords.lat));
+                formData.append('lon', String(coords.lon));
+            } catch {
+                formData.append('lat', String(fallback.lat));
+                formData.append('lon', String(fallback.lon));
+            }
+        }
         formData.append('labs_json', JSON.stringify(biomarkers));
         formData.append('preferences_json', JSON.stringify(preferences));
 

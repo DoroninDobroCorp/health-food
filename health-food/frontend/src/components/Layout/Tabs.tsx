@@ -9,6 +9,9 @@ interface TabsProps {
 const Tabs = ({ activeTab, setActiveTab }: TabsProps) => {
     const tabs: { id: Tab; icon: string; name: string }[] = [
         { id: 'plan', icon: '🍲', name: 'План питания' },
+        { id: 'restaurants', icon: '📍', name: 'Заведения рядом' },
+        { id: 'subs', icon: '📦', name: 'Подписка' },
+        { id: 'reviews', icon: '💬', name: 'Отзывы' },
         { id: 'rem', icon: '🔔', name: 'Напоминания' },
         { id: 'profile', icon: '👤', name: 'Профиль' },
     ];
