@@ -1,7 +1,12 @@
+"""
+Health Food - Главный модуль приложения
+Персонализированный сервис питания на основе анализов крови
+"""
 import json
+import logging
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,26 +19,36 @@ from .auth.dependencies import get_current_user
 from .auth.router import router as auth_router
 from .recipes.router import router as recipes_router
 from .config import has_openai_api_key, load_env
-from .db import (
-    get_conn,
-    get_public_recipes,
-    get_upcoming_reminders,
-    init_db,
-    save_labs_and_schedule,
-    save_profile,
-    save_user_recipe,
-)
+from .db import get_conn, get_upcoming_reminders, init_db, save_labs_and_schedule, save_profile
 from .llm_provider.openai_provider import OpenAIProvider
-from .recipe_utils import build_shopping_list, select_recipes_for_deficits
-from .restaurants import score_restaurant_dishes
-from .rules import analyze_biomarkers, vitamin_recommendations
 
-app = FastAPI(title="Health Food MVP")
+# Новые сервисы
+from .repositories.recipe_repository import RecipeRepository
+from .repositories.restaurant_repository import RestaurantRepository
+from .repositories.biomarker_repository import BiomarkerRepository
+from .services.recipe_service import RecipeService
+from .services.restaurant_service import RestaurantService
+from .services.biomarker_service import BiomarkerService
+from .services.ai_service import AIService
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="Health Food",
+    description="Персонализированный сервис питания на основе анализов крови",
+    version="2.0.0"
+)
 
 app.include_router(auth_router)
 app.include_router(recipes_router)
 
-llm_provider = None
+# Глобальные сервисы
+ai_service: Optional[AIService] = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,11 +83,28 @@ class ChatRequest(BaseModel):
 
 @app.on_event("startup")
 async def _startup():
-    global llm_provider
+    """Инициализация приложения при запуске"""
+    global ai_service
+    
+    logger.info("Запуск Health Food приложения...")
+    
+    # Загрузка переменных окружения
     load_env()
+    
+    # Инициализация базы данных
+    logger.info("Инициализация базы данных...")
     init_db()
+    
+    # Инициализация AI сервиса
     if has_openai_api_key():
+        logger.info("OpenAI API ключ найден, инициализация AI сервиса...")
         llm_provider = OpenAIProvider()
+        ai_service = AIService(llm_provider)
+    else:
+        logger.warning("OpenAI API ключ не найден. AI функции будут недоступны.")
+        ai_service = AIService(None)
+    
+    logger.info("Health Food приложение успешно запущено!")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -91,123 +123,142 @@ async def generate(
     lat: Optional[float] = Form(None),
     lon: Optional[float] = Form(None),
     photo: Optional[UploadFile] = File(None),
-    difficulty: Optional[str] = Form(None),  # Added for AI recipes
+    difficulty: Optional[str] = Form(None),
 ):
+    """
+    Главный эндпоинт генерации рекомендаций
+    Поддерживает режимы: diy, restaurants, photo, ai_recipe
+    """
     try:
-        labs = json.loads(labs_json or "{}")
-    except Exception:
-        labs = {}
-    try:
-        preferences = json.loads(preferences_json or "{}")
-    except Exception:
-        preferences = {}
-
-    deficits = analyze_biomarkers(labs)
-    vitamins = vitamin_recommendations(labs, deficits)
-
-    location = None
-    if lat is not None and lon is not None:
-        location = {"lat": lat, "lon": lon}
-
-    result: Dict[str, Any] = {"mode": mode, "deficits": deficits, "vitamins": vitamins}
-
-    if mode == "diy":
-        chosen = select_recipes_for_deficits(deficits, preferences)
-        shopping = build_shopping_list(chosen)
-
-        recipes_from_db = get_public_recipes()
-        for recipe in chosen:
-            orig = next((r for r in recipes_from_db if r["id"] == recipe["id"]), None)
-            if orig and "tags" in orig and orig["tags"]:
-                recipe["tags"] = orig["tags"]
-
-        result.update(
-            {
+        # Парсинг входных данных
+        try:
+            labs = json.loads(labs_json or "{}")
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Неверный формат labs_json")
+        
+        try:
+            preferences = json.loads(preferences_json or "{}")
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Неверный формат preferences_json")
+        
+        # Инициализация сервисов
+        biomarker_repo = BiomarkerRepository(conn)
+        biomarker_service = BiomarkerService(biomarker_repo)
+        
+        recipe_repo = RecipeRepository(conn)
+        recipe_service = RecipeService(recipe_repo)
+        
+        # Анализ биомаркеров
+        logger.info(f"Анализ биомаркеров для пользователя {current_user.id}")
+        deficits = biomarker_service.analyze_labs(labs)
+        vitamins = biomarker_service.generate_vitamin_recommendations(labs, deficits)
+        
+        result: Dict[str, Any] = {
+            "mode": mode, 
+            "deficits": deficits, 
+            "vitamins": vitamins
+        }
+        
+        # Обработка по режимам
+        if mode == "diy":
+            logger.info("Режим DIY: подбор рецептов")
+            chosen = recipe_service.select_recipes_for_plan(deficits, preferences)
+            shopping = recipe_service.build_shopping_list(chosen)
+            
+            result.update({
                 "plan": chosen,
                 "shopping_list": shopping,
-            }
-        )
-    elif mode == "restaurants":
-        if not location:
-            return JSONResponse(
-                {"error": "location required (lat, lon)"}, status_code=400
+            })
+            
+        elif mode == "restaurants":
+            if lat is None or lon is None:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Для режима restaurants требуются координаты (lat, lon)"
+                )
+            
+            logger.info(f"Режим Restaurants: поиск вблизи ({lat}, {lon})")
+            restaurant_repo = RestaurantRepository(conn)
+            restaurant_service = RestaurantService(restaurant_repo)
+            
+            location = {"lat": lat, "lon": lon}
+            scored = restaurant_service.find_best_dishes(deficits, location, limit=20)
+            result.update({"restaurants": scored})
+            
+        elif mode == "photo":
+            if not ai_service.is_available():
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI сервис недоступен. Требуется OpenAI API ключ."
+                )
+            
+            if photo is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Требуется загрузка фотографии"
+                )
+            
+            logger.info("Режим Photo: анализ холодильника")
+            image_data = await photo.read()
+            detected = await ai_service.analyze_fridge_photo(image_data)
+            
+            logger.info(f"Обнаружено продуктов: {len(detected)}")
+            preferences_with_available = {**preferences, "available": detected}
+            
+            chosen = recipe_service.select_recipes_for_plan(
+                deficits, 
+                preferences_with_available,
+                available_ingredients=detected
             )
-        scored = score_restaurant_dishes(deficits, location)
-        result.update({"restaurants": scored[:20]})
-    elif mode == "photo":
-        if not llm_provider or photo is None:
-            return JSONResponse(
-                {"error": "Photo upload requires an OpenAI API key and a photo file."},
-                status_code=400,
-            )
-
-        image_data = await photo.read()
-
-        prompt = (
-            "Analyze the attached image of a fridge or pantry. "
-            "Identify all visible food items and ingredients. "
-            "Return the result as a JSON object with a single key 'items' "
-            "containing a list of the identified food names in lowercase Russian. "
-            'For example: {"items": ["яйца", "овсянка", "рыба"]}. '
-            "If no food is visible, return an empty list."
-        )
-        detected = await llm_provider.analyze_image(image_data, prompt)
-
-        if not detected:
-            detected = [
-                "oats",
-                "eggs",
-                "canned tuna",
-                "frozen berries",
-                "olive oil",
-                "chickpeas",
-                "rice",
-                "tomatoes",
-                "spinach",
-            ]
-
-        preferences = {**preferences, "available": detected}
-        chosen = select_recipes_for_deficits(deficits, preferences)
-        shopping = build_shopping_list(chosen, available=detected)
-
-        # TODO: This logic also needs review.
-        recipes_from_db = get_public_recipes()
-        for recipe in chosen:
-            orig = next((r for r in recipes_from_db if r["id"] == recipe["id"]), None)
-            if orig and "tags" in orig and orig["tags"]:
-                recipe["tags"] = orig["tags"]
-
-        result.update(
-            {
+            shopping = recipe_service.build_shopping_list(chosen, detected)
+            
+            result.update({
                 "detected": detected,
                 "plan": chosen,
                 "shopping_list": shopping,
+            })
+            
+        elif mode == "ai_recipe":
+            if not ai_service.is_available():
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI сервис недоступен. Требуется OpenAI API ключ."
+                )
+            
+            logger.info("Режим AI Recipe: генерация персонализированных рецептов")
+            user_context = {
+                "labs": labs,
+                "preferences": preferences,
+                "difficulty": difficulty or "легкий",
             }
-        )
-    elif mode == "ai_recipe":
-        if not llm_provider:
-            return JSONResponse(
-                {"error": "AI recipe generation requires an OpenAI API key."},
-                status_code=400,
+            
+            recipes = await ai_service.generate_personalized_recipes(user_context)
+            
+            # Сохраняем рецепты в БД
+            saved_recipes = [
+                recipe_repo.create(recipe, user_id=current_user.id) 
+                for recipe in recipes
+            ]
+            
+            result.update({"recipes": saved_recipes})
+            
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Неизвестный режим: {mode}"
             )
-
-        user_context = {
-            "labs": labs,
-            "preferences": preferences,
-            "difficulty": difficulty,
-        }
-
-        recipes = await llm_provider.generate_recipes(user_context)
         
-        saved_recipes = [
-            save_user_recipe(conn, user_id=current_user.id, recipe=r) for r in recipes
-        ]
+        logger.info(f"Успешно обработан запрос в режиме {mode}")
+        return JSONResponse(result)
         
-        result.update({"recipes": saved_recipes})
-    else:
-        return JSONResponse({"error": "unknown mode"}, status_code=400)
-
-    return JSONResponse(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка при обработке запроса: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Внутренняя ошибка сервера: {str(e)}"
+        )
 
 
 # Simple health check
@@ -246,20 +297,28 @@ async def api_upcoming(days: int = 120):
 
 @app.post("/api/vitamins/recommendations")
 async def api_vitamins_recommendations(request: ChatRequest):
-    if not llm_provider:
-        return JSONResponse({"error": "LLM provider not initialized"}, status_code=503)
+    """
+    Эндпоинт для получения AI консультации по витаминам и добавкам
+    """
+    if not ai_service or not ai_service.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="AI сервис недоступен. Требуется OpenAI API ключ."
+        )
 
     try:
-        result = await llm_provider.get_vitamin_recommendations(
+        logger.info(f"Запрос консультации по витаминам: {request.message[:50]}...")
+        
+        result = await ai_service.get_nutrition_consultation(
             user_message=request.message,
-            thread_id=request.thread_id,
             user_context=request.context,
+            thread_id=request.thread_id,
         )
 
         return result
     except Exception as e:
-        print(f"Error in vitamins recommendations: {str(e)}")
-        return JSONResponse(
-            {"error": "An error occurred while generating vitamin recommendations"},
+        logger.error(f"Ошибка при получении рекомендаций по витаминам: {str(e)}", exc_info=True)
+        raise HTTPException(
             status_code=500,
+            detail=f"Ошибка при генерации рекомендаций: {str(e)}"
         )
